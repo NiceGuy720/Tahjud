@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gebetszeiten Rechner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 15px;
+      background: #f8f9fa;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .results {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .results p {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #eee;
+    }
+    #languageSelector {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="title">Gebetszeiten & Nachtdrittel</h1>
+
+  <label for="languageSelector">🌍 Sprache:</label>
+  <select id="languageSelector">
+    <option value="de">Deutsch</option>
+    <option value="en">English</option>
+    <option value="ar">العربية</option>
+    <option value="tr">Türkçe</option>
+  </select>
+
+  <button id="standortBtn">📍 Standort verwenden</button>
+
+  <div id="results" class="results">
+    <div id="gebetszeiten"></div>
+    <div id="nachtdrittel"></div>
+  </div>
+
+  <script>
+    const resultsContainer = document.getElementById("results");
+    const gebetszeitenDiv = document.getElementById("gebetszeiten");
+    const nachtdrittelDiv = document.getElementById("nachtdrittel");
+    const standortBtn = document.getElementById("standortBtn");
+    const languageSelector = document.getElementById("languageSelector");
+    const title = document.getElementById("title");
+
+    // Mehrsprachige Übersetzungen
+    const translations = {
+      de: {
+        title: "Gebetszeiten & Nachtdrittel",
+        useLocation: "📍 Standort verwenden",
+        prayerTimesTitle: "Gebetszeiten",
+        nightThirdsTitle: "Nachtdrittel",
+        nightThird1: "1. Drittel",
+        nightThird2: "2. Drittel",
+        nightThird3: "3. Drittel",
+        errorLocation: "Standort konnte nicht abgerufen werden:",
+        errorFetch: "Fehler beim Abrufen der Gebetszeiten!"
+      },
+      en: {
+        title: "Prayer Times & Night Thirds",
+        useLocation: "📍 Use location",
+        prayerTimesTitle: "Prayer Times",
+        nightThirdsTitle: "Night Thirds",
+        nightThird1: "1st third",
+        nightThird2: "2nd third",
+        nightThird3: "3rd third",
+        errorLocation: "Could not retrieve location:",
+        errorFetch: "Error fetching prayer times!"
+      },
+      ar: {
+        title: "أوقات الصلاة وثلث الليل",
+        useLocation: "📍 استخدام الموقع",
+        prayerTimesTitle: "أوقات الصلاة",
+        nightThirdsTitle: "أثلاث الليل",
+        nightThird1: "الثلث الأول",
+        nightThird2: "الثلث الثاني",
+        nightThird3: "الثلث الثالث",
+        errorLocation: "تعذر الحصول على الموقع:",
+        errorFetch: "خطأ في جلب أوقات الصلاة!"
+      },
+      tr: {
+        title: "Namaz Vakitleri & Gece Üçte Biri",
+        useLocation: "📍 Konumu kullan",
+        prayerTimesTitle: "Namaz Vakitleri",
+        nightThirdsTitle: "Gece Üçte Biri",
+        nightThird1: "1. Üçte Bir",
+        nightThird2: "2. Üçte Bir",
+        nightThird3: "3. Üçte Bir",
+        errorLocation: "Konum alınamadı:",
+        errorFetch: "Namaz vakitleri alınırken hata oluştu!"
+      }
+    };
+
+    let currentLang = "de";
+
+    // Sprache ändern
+    languageSelector.addEventListener("change", () => {
+      currentLang = languageSelector.value;
+      applyTranslations();
+    });
+
+    function applyTranslations() {
+      title.textContent = translations[currentLang].title;
+      standortBtn.textContent = translations[currentLang].useLocation;
+    }
+
+    applyTranslations();
+
+    // Standort abrufen
+    standortBtn.addEventListener("click", () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(positionErfolgreich, positionFehler);
+      } else {
+        alert("Geolocation wird von deinem Browser nicht unterstützt.");
+      }
+    });
+
+    // Wenn Standort gefunden
+    async function positionErfolgreich(pos) {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      try {
+        const res = await fetch(`https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=2`);
+        const data = await res.json();
+        const zeiten = data.data.timings;
+
+        gebetszeitenAnzeigen(zeiten);
+        nachtdrittelBerechnenUndAnzeigen(zeiten.Maghrib, zeiten.Fajr);
+
+        resultsContainer.style.display = "block";
+      } catch (err) {
+        alert(translations[currentLang].errorFetch);
+      }
+    }
+
+    // Wenn Standort fehlschlägt
+    function positionFehler(error) {
+      alert(translations[currentLang].errorLocation + " " + error.message);
+    }
+
+    // Gebetszeiten anzeigen
+    function gebetszeitenAnzeigen(zeiten) {
+      gebetszeitenDiv.innerHTML = `<h2>${translations[currentLang].prayerTimesTitle}</h2>
+        <p><span>Fajr</span> <span>${zeiten.Fajr}</span></p>
+        <p><span>Dhuhr</span> <span>${zeiten.Dhuhr}</span></p>
+        <p><span>Asr</span> <span>${zeiten.Asr}</span></p>
+        <p><span>Maghrib</span> <span>${zeiten.Maghrib}</span></p>
+        <p><span>Isha</span> <span>${zeiten.Isha}</span></p>`;
+    }
+
+    // Nachtdrittel berechnen
+    function nachtdrittelBerechnenUndAnzeigen(maghribZeit, fajrZeit) {
+      const parseTime = (timeStr) => {
+        let clean = timeStr.split(" ")[0]; // entfernt (CEST) etc.
+        let [h, m] = clean.split(":").map(Number);
+        return { h, m };
+      };
+
+      const { h: mh, m: mm } = parseTime(maghribZeit);
+      const { h: fh, m: fm } = parseTime(fajrZeit);
+
+      const maghrib = new Date();
+      maghrib.setHours(mh, mm, 0);
+
+      const fajr = new Date();
+      fajr.setHours(fh, fm, 0);
+      if (fajr <= maghrib) fajr.setDate(fajr.getDate() + 1);
+
+      const drittel = (fajr - maghrib) / 3;
+      const zweites = new Date(maghrib.getTime() + drittel);
+      const drittes = new Date(maghrib.getTime() + 2 * drittel);
+
+      const locale = currentLang === "ar" ? "ar-EG" : (currentLang === "tr" ? "tr-TR" : (currentLang === "en" ? "en-GB" : "de-DE"));
+
+      const format = (d) => d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+
+      nachtdrittelDiv.innerHTML = `<h2>${translations[currentLang].nightThirdsTitle}</h2>
+        <p><span>${translations[currentLang].nightThird1}</span> <span>${format(maghrib)}</span></p>
+        <p><span>${translations[currentLang].nightThird2}</span> <span>${format(zweites)}</span></p>
+        <p><span>${translations[currentLang].nightThird3}</span> <span>${format(drittes)}</span></p>`;
+    }
+  </script>
+</body>
+</html>
